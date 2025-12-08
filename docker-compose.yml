@@ -1,0 +1,24 @@
+services:
+  ha-sensor-mjpeg:
+    # Use the image from GitHub Container Registry
+    # Replace tuomaz with your GitHub username if you forked/built it yourself
+    image: ghcr.io/tuomaz/ha-sensor-mjpeg:main
+    container_name: ha-sensor-mjpeg
+    restart: unless-stopped
+    ports:
+      - "8080:8080" # Host_Port:Container_Port
+    environment:
+      # --- REQUIRED ---
+      - HA_BASE_URL=http://your-home-assistant-ip:8123 # e.g., http://192.168.1.100:8123
+      - HA_LONG_LIVED_TOKEN=YOUR_HA_LONG_LIVED_TOKEN # Generate in HA: Profile -> Long-Lived Access Tokens
+      - SENSOR_ENTITY_ID=sensor.ute_kombinerad # Your specific sensor entity ID
+
+      # --- OPTIONAL ---
+      - PORT=8080 # Port the application listens on (default: 8080)
+      - DATE_FORMAT=%Y-%m-%d # Default: %Y-%m-%d (e.g., 2025-12-07)
+      - TIME_FORMAT=%H.%M    # Default: %H.%M (e.g., 19.30)
+      - VIDEO_WIDTH=640      # Default: 640
+      - VIDEO_HEIGHT=360     # Default: 360
+      - TZ=Europe/Stockholm  # Set timezone (e.g., Europe/Berlin, UTC). Requires tzdata in image.
+      # For a full list of formatting options, see:
+      # https://docs.rs/chrono/latest/chrono/format/strftime/index.html#specifiers
