@@ -41,7 +41,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy binary from builder
-COPY --from=builder /app/target/release/ha-sensor-mjpeg /app/ha-sensor-mjpeg
+COPY --from=builder /app/target/release/ha-sensor-streamer /app/ha-sensor-streamer
 
 # Copy assets
 COPY --from=builder /app/assets /app/assets
@@ -51,4 +51,4 @@ ENV PORT=8080
 
 EXPOSE 8080
 
-CMD ["./ha-sensor-mjpeg"]
+CMD ["./ha-sensor-streamer"]
