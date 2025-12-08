@@ -97,7 +97,7 @@ mod tests {
         assert_eq!(config.video_height, 360);
         assert_eq!(config.video_fps, 5);
         assert_eq!(config.stream_format, "mjpeg");
-        
+
         // Cleanup
         env::remove_var("HA_BASE_URL");
         env::remove_var("HA_LONG_LIVED_TOKEN");

@@ -146,13 +146,16 @@ mod tests {
             "%H:%M".to_string(),
             640,
             360,
-        ).expect("Failed to create ImageGenerator");
+        )
+        .expect("Failed to create ImageGenerator");
 
-        let frame = generator.generate_frame("22.5").expect("Failed to generate frame");
-        
+        let frame = generator
+            .generate_frame("22.5")
+            .expect("Failed to generate frame");
+
         // Check if we got some bytes back
         assert!(!frame.is_empty());
-        
+
         // Basic check for JPEG header (FF D8)
         assert_eq!(frame[0], 0xFF);
         assert_eq!(frame[1], 0xD8);
@@ -167,7 +170,8 @@ mod tests {
             "%H:%M".to_string(),
             640,
             360,
-        ).expect("Failed to create ImageGenerator");
+        )
+        .expect("Failed to create ImageGenerator");
 
         let scale = Scale { x: 48.0, y: 48.0 };
         let width = generator.measure_text_width("Test", scale);
