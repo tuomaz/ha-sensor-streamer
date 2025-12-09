@@ -64,3 +64,82 @@ impl Config {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serial_test::serial;
+
+    #[test]
+    #[serial]
+    fn test_config_from_env_defaults() {
+        // Set required env vars
+        env::set_var("HA_BASE_URL", "http://localhost:8123");
+        env::set_var("HA_LONG_LIVED_TOKEN", "test_token");
+
+        // Clear optional ones to test defaults
+        env::remove_var("SENSOR_ENTITY_ID");
+        env::remove_var("PORT");
+        env::remove_var("DATE_FORMAT");
+        env::remove_var("TIME_FORMAT");
+        env::remove_var("VIDEO_WIDTH");
+        env::remove_var("VIDEO_HEIGHT");
+        env::remove_var("VIDEO_FPS");
+        env::remove_var("STREAM_FORMAT");
+
+        let config = Config::from_env().unwrap();
+
+        assert_eq!(config.ha_base_url, "http://localhost:8123");
+        assert_eq!(config.ha_token, "test_token");
+        assert_eq!(config.sensor_entity_id, "sensor.ute_kombinerad");
+        assert_eq!(config.port, 8080);
+        assert_eq!(config.video_width, 640);
+        assert_eq!(config.video_height, 360);
+        assert_eq!(config.video_fps, 5);
+        assert_eq!(config.stream_format, "mjpeg");
+
+        // Cleanup
+        env::remove_var("HA_BASE_URL");
+        env::remove_var("HA_LONG_LIVED_TOKEN");
+    }
+
+    #[test]
+    #[serial]
+    fn test_config_from_env_custom() {
+        env::set_var("HA_BASE_URL", "http://homeassistant.local/"); // Test trailing slash removal
+        env::set_var("HA_LONG_LIVED_TOKEN", "another_token");
+        env::set_var("SENSOR_ENTITY_ID", "sensor.temp");
+        env::set_var("PORT", "9090");
+        env::set_var("DATE_FORMAT", "%d-%m-%Y");
+        env::set_var("TIME_FORMAT", "%H:%M");
+        env::set_var("VIDEO_WIDTH", "1280");
+        env::set_var("VIDEO_HEIGHT", "720");
+        env::set_var("VIDEO_FPS", "10");
+        env::set_var("STREAM_FORMAT", "RTSP"); // Test case insensitivity
+
+        let config = Config::from_env().unwrap();
+
+        assert_eq!(config.ha_base_url, "http://homeassistant.local"); // Slash removed
+        assert_eq!(config.ha_token, "another_token");
+        assert_eq!(config.sensor_entity_id, "sensor.temp");
+        assert_eq!(config.port, 9090);
+        assert_eq!(config.date_format, "%d-%m-%Y");
+        assert_eq!(config.time_format, "%H:%M");
+        assert_eq!(config.video_width, 1280);
+        assert_eq!(config.video_height, 720);
+        assert_eq!(config.video_fps, 10);
+        assert_eq!(config.stream_format, "rtsp"); // Lowercase
+
+        // Cleanup
+        env::remove_var("HA_BASE_URL");
+        env::remove_var("HA_LONG_LIVED_TOKEN");
+        env::remove_var("SENSOR_ENTITY_ID");
+        env::remove_var("PORT");
+        env::remove_var("DATE_FORMAT");
+        env::remove_var("TIME_FORMAT");
+        env::remove_var("VIDEO_WIDTH");
+        env::remove_var("VIDEO_HEIGHT");
+        env::remove_var("VIDEO_FPS");
+        env::remove_var("STREAM_FORMAT");
+    }
+}
