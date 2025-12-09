@@ -1,15 +1,19 @@
-# Home Assistant Sensor MJPEG Streamer (`ha-sensor-mjpeg`)
+# Home Assistant Sensor MJPEG Streamer (`ha-sensor-streamer`)
 
-`ha-sensor-mjpeg` is a lightweight Rust application that connects to Home Assistant, fetches the state of a specified sensor, and streams it as an MJPEG video feed. This allows you to integrate sensor data and the current time into systems that consume video streams, such as [Frigate](https://frigate.video/).
+`ha-sensor-streamer` is a lightweight Rust application that connects to Home Assistant, fetches the state of a specified sensor, and streams it as an MJPEG video feed. This allows you to integrate sensor data and the current time into systems that consume video streams, such as [Frigate](https://frigate.video/).
 
 The application is highly configurable, allowing you to customize the displayed date and time formats, and easily deployable via Docker.
 
 ## Features
 
 *   **Home Assistant Integration**: Connects to HA via its REST API using a long-lived access token.
+    *   **Polling**: Updates the sensor state every 10 seconds.
 *   **Dynamic Overlay**: Overlays current date, time, and a chosen sensor's value onto a black background.
+    *   **Sensor Display**: Automatically appends a degree symbol (°) to the sensor value, making it ideal for temperature sensors.
 *   **Customizable Display**: Date and time formats are configurable via environment variables.
 *   **MJPEG Stream**: Serves a standard MJPEG video stream (e.g., `http://localhost:3000/stream`).
+*   **Native RTSP Stream**: Serves a low-latency H.264 RTSP stream using GStreamer.
+    *   Uses `x264enc` with `speed-preset=ultrafast` and `tune=zerolatency` for minimal delay.
 *   **Dockerized**: Provided `Dockerfile` and `docker-compose.yml` for easy deployment.
 *   **Built with Rust**: High performance, memory safety, and minimal resource usage.
 
@@ -29,22 +33,22 @@ These instructions will get you a copy of the project up and running on your loc
 
 1.  Clone the repository:
     ```bash
-    git clone https://github.com/tuomaz/ha-sensor-mjpeg.git
-    cd ha-sensor-mjpeg
+    git clone https://github.com/tuomaz/ha-sensor-streamer.git
+    cd ha-sensor-streamer
     ```
 2.  Build the project in release mode:
     ```bash
     cargo build --release
     ```
-    The executable will be located at `./target/release/ha-sensor-mjpeg`.
+    The executable will be located at `./target/release/ha-sensor-streamer`.
 
 #### Using Docker (Recommended for Deployment)
 
-The easiest way to run `ha-sensor-mjpeg` is using its Docker image from the GitHub Container Registry.
+The easiest way to run `ha-sensor-streamer` is using its Docker image from the GitHub Container Registry.
 
 ```bash
 # Pull the latest image
-docker pull ghcr.io/tuomaz/ha-sensor-mjpeg:main
+docker pull ghcr.io/tuomaz/ha-sensor-streamer:main
 ```
 
 ## Usage
@@ -83,7 +87,7 @@ The application is configured using environment variables:
     ```
 2.  Run the compiled executable:
     ```bash
-    ./target/release/ha-sensor-mjpeg
+    ./target/release/ha-sensor-streamer
     ```
 
 ### Running with Docker Compose
@@ -163,7 +167,7 @@ cameras:
 
 If you prefer to use the MJPEG output but need H.264 for Frigate/HomeKit, you can use `go2rtc` to transcode it.
 
-#### 1. Add `ha-sensor-mjpeg` to `go2rtc.yaml`
+#### 1. Add `ha-sensor-streamer` to `go2rtc.yaml`
 
 Modify your `go2rtc.yaml` (or the `go2rtc` section if embedded in `frigate.yml`) to include the stream with H.264 transcoding and pixel format conversion:
 
@@ -204,7 +208,7 @@ cameras:
 ```
 ## Contributing
 
-Feel free to open issues or submit pull requests on the [GitHub repository](https://github.com/tuomaz/ha-sensor-mjpeg).
+Feel free to open issues or submit pull requests on the [GitHub repository](https://github.com/tuomaz/ha-sensor-streamer).
 
 ## Acknowledgements
 
