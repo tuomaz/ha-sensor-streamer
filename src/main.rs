@@ -33,7 +33,7 @@ async fn main() -> anyhow::Result<()> {
 
     let config = Config::from_env()?;
 
-    println!("Starting ha-sensor-mjpeg...");
+    println!("Starting ha-sensor-streamer...");
 
     println!("Mode: {}", config.stream_format);
 
