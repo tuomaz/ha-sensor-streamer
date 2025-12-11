@@ -1,6 +1,6 @@
 # Home Assistant Sensor Streamer (`ha-sensor-streamer`)
 
-`ha-sensor-streamer` is a lightweight Rust application that connects to Home Assistant, fetches the state of a specified sensor, and streams it as an MJPEG video feed. This allows you to integrate sensor data and the current time into systems that consume video streams, such as [Frigate](https://frigate.video/).
+`ha-sensor-streamer` is a lightweight Rust application that connects to Home Assistant, fetches the state of a specified sensor, and streams it as an MJPEG or H264/MP4 video feed. This allows you to integrate sensor data and the current time into systems that consume video streams, such as [Frigate](https://frigate.video/).
 
 The application is highly configurable, allowing you to customize the displayed date and time formats, and easily deployable via Docker.
 
