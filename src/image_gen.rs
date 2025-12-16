@@ -109,15 +109,7 @@ impl ImageGenerator {
             let x = (self.width as i32 - text_width as i32) / 2;
             let y = start_y + i as i32 * (line_height + gap);
 
-            draw_text_mut(
-                &mut image,
-                white,
-                x,
-                y,
-                scale,
-                &self.font,
-                &text,
-            );
+            draw_text_mut(&mut image, white, x, y, scale, &self.font, &text);
         }
 
         image
@@ -150,13 +142,8 @@ mod tests {
             "Date: {time:%Y-%m-%d}".to_string(),
             "Temp: {sensor.temp}°C".to_string(),
         ];
-        let generator = ImageGenerator::new(
-            font_data,
-            lines,
-            640,
-            360,
-        )
-        .expect("Failed to create ImageGenerator");
+        let generator = ImageGenerator::new(font_data, lines, 640, 360)
+            .expect("Failed to create ImageGenerator");
 
         let mut sensors = HashMap::new();
         sensors.insert("sensor.temp".to_string(), "22.5".to_string());
@@ -190,7 +177,7 @@ mod tests {
         // Test Missing Sensor
         let res = generator.resolve_line("Hum: {sensor.hum}", &sensors);
         assert_eq!(res, "Hum: ?");
-        
+
         // Test Multiple
         sensors.insert("sensor.hum".to_string(), "50".to_string());
         let res = generator.resolve_line("T: {sensor.temp} H: {sensor.hum}", &sensors);

@@ -170,7 +170,7 @@ mod tests {
         assert_eq!(sensors.len(), 1);
         assert_eq!(sensors[0], "sensor.temp");
 
-         // Cleanup
+        // Cleanup
         env::remove_var("HA_BASE_URL");
         env::remove_var("HA_LONG_LIVED_TOKEN");
         env::remove_var("LINE_1");
