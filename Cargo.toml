@@ -23,6 +23,7 @@ gstreamer = "0.23"
 gstreamer-app = "0.23"
 gstreamer-rtsp-server = "0.23"
 gstreamer-video = "0.23"
+regex = "1.12.2"
 
 [dev-dependencies]
 serial_test = "2.0"

@@ -1,5 +1,6 @@
 use axum::{body::Body, extract::State, response::Response, routing::get, Router};
 use std::{
+    collections::HashMap,
     net::SocketAddr,
     sync::{Arc, RwLock},
     time::Duration,
@@ -39,11 +40,15 @@ async fn main() -> anyhow::Result<()> {
 
     println!("Connecting to Home Assistant at {}", config.ha_base_url);
 
-    println!("Watching sensor: {}", config.sensor_entity_id);
+    let sensors_to_watch = config.get_required_sensors();
+    if sensors_to_watch.is_empty() {
+        println!("No sensors configured to watch.");
+    } else {
+        println!("Watching sensors: {:?}", sensors_to_watch);
+    }
 
-    // Shared state for the latest sensor value. Default to "Loading..."
-
-    let sensor_value = Arc::new(RwLock::new("Loading...".to_string()));
+    // Shared state for the latest sensor values.
+    let sensor_values = Arc::new(RwLock::new(HashMap::new()));
 
     // Initialize components
 
@@ -55,40 +60,40 @@ async fn main() -> anyhow::Result<()> {
 
     let image_gen = Arc::new(ImageGenerator::new(
         font_data,
-        config.date_format.clone(),
-        config.time_format.clone(),
+        config.lines.clone(),
         config.video_width,
         config.video_height,
     )?);
 
     // 1. Spawn Background Polling Task
 
-    let sensor_value_clone = sensor_value.clone();
+    let sensor_values_clone = sensor_values.clone();
+    let sensors_list = sensors_to_watch.clone();
+    let ha_client_clone = ha_client.clone();
 
-    let entity_id = config.sensor_entity_id.clone();
-
-    tokio::spawn(async move {
-        loop {
-            match ha_client.fetch_sensor_state(&entity_id).await {
-                Ok(val) => {
-                    if let Ok(mut lock) = sensor_value_clone.write() {
-                        *lock = val;
+    if !sensors_list.is_empty() {
+        tokio::spawn(async move {
+            loop {
+                for entity_id in &sensors_list {
+                    match ha_client_clone.fetch_sensor_state(entity_id).await {
+                        Ok(val) => {
+                            if let Ok(mut lock) = sensor_values_clone.write() {
+                                lock.insert(entity_id.clone(), val);
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("Error fetching sensor state for {}: {}", entity_id, e);
+                            // Optionally update state to "Error" or keep old value
+                        }
                     }
                 }
-
-                Err(e) => {
-                    eprintln!("Error fetching sensor state: {}", e);
-
-                    // Optionally update state to "Error" or keep old value
-                }
+                sleep(Duration::from_secs(10)).await; // Poll every 10 seconds
             }
-
-            sleep(Duration::from_secs(10)).await; // Poll every 10 seconds
-        }
-    });
+        });
+    }
 
     let app_state = AppState {
-        sensor_value,
+        sensor_values,
 
         image_gen,
 
@@ -154,11 +159,11 @@ async fn mjpeg_stream(State(state): State<AppState>) -> Response {
 
 
 
-                    // Get current sensor value
+                    // Get current sensor values
 
-            let val = {
+            let val_map = {
 
-                let lock = state.sensor_value.read().unwrap();
+                let lock = state.sensor_values.read().unwrap();
 
                 lock.clone()
 
@@ -190,7 +195,7 @@ async fn mjpeg_stream(State(state): State<AppState>) -> Response {
 
 
 
-            match state.image_gen.generate_frame(&val) {
+            match state.image_gen.generate_frame(&val_map) {
 
                 Ok(jpeg_bytes) => {
 

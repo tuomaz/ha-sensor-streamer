@@ -72,14 +72,14 @@ pub fn run_rtsp_server(config: &crate::config::Config, app_state: AppState) -> R
         let callbacks = gst_app::AppSrcCallbacks::builder()
             .need_data(move |appsrc, _hint| {
                 // Check current sensor value
-                let val = {
-                    let lock = state_clone.sensor_value.read().unwrap();
+                let val_map = {
+                    let lock = state_clone.sensor_values.read().unwrap();
                     lock.clone()
                 };
 
                 // Generate frame
                 // Note: ImageGenerator now returns raw RGB bytes for RTSP efficiency.
-                let raw_bytes = state_clone.image_gen.generate_raw_frame(&val);
+                let raw_bytes = state_clone.image_gen.generate_raw_frame(&val_map);
 
                 // Create buffer
                 let mut buffer = gst::Buffer::from_slice(raw_bytes);

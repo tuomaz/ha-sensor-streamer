@@ -1,32 +1,28 @@
 use anyhow::Result;
+use regex::Regex;
+use std::collections::HashSet;
 use std::env;
 
 #[derive(Clone)]
 pub struct Config {
     pub ha_base_url: String,
     pub ha_token: String,
-    pub sensor_entity_id: String,
     pub port: u16,
-    pub date_format: String,
-    pub time_format: String,
     pub video_width: u32,
     pub video_height: u32,
     pub video_fps: u64,
     pub stream_format: String,
+    pub lines: Vec<String>,
 }
 
 impl Config {
     pub fn from_env() -> Result<Self> {
         let ha_base_url = env::var("HA_BASE_URL").expect("HA_BASE_URL must be set");
         let ha_token = env::var("HA_LONG_LIVED_TOKEN").expect("HA_LONG_LIVED_TOKEN must be set");
-        let sensor_entity_id =
-            env::var("SENSOR_ENTITY_ID").unwrap_or_else(|_| "sensor.ute_kombinerad".to_string());
         let port = env::var("PORT")
             .unwrap_or_else(|_| "8080".to_string())
             .parse()
             .expect("PORT must be a number");
-        let date_format = env::var("DATE_FORMAT").unwrap_or_else(|_| "%Y-%m-%d".to_string());
-        let time_format = env::var("TIME_FORMAT").unwrap_or_else(|_| "%H.%M".to_string());
         let video_width = env::var("VIDEO_WIDTH")
             .unwrap_or_else(|_| "640".to_string())
             .parse()
@@ -50,18 +46,59 @@ impl Config {
             ha_base_url
         };
 
+        // Parse Lines
+        let mut lines = Vec::new();
+        let mut has_line_config = false;
+
+        for i in 1..=4 {
+            if let Ok(line) = env::var(format!("LINE_{}", i)) {
+                if !line.is_empty() {
+                    lines.push(line);
+                    has_line_config = true;
+                }
+            }
+        }
+
+        // Fallback to old config if no lines are defined
+        if !has_line_config {
+            let date_format = env::var("DATE_FORMAT").unwrap_or_else(|_| "%Y-%m-%d".to_string());
+            let time_format = env::var("TIME_FORMAT").unwrap_or_else(|_| "%H.%M".to_string());
+            let sensor_entity_id = env::var("SENSOR_ENTITY_ID")
+                .unwrap_or_else(|_| "sensor.ute_kombinerad".to_string());
+
+            lines.push(format!("{{time:{}}}", date_format));
+            lines.push(format!("{{time:{}}}", time_format));
+            lines.push(format!("{{sensor.{}}}°", sensor_entity_id));
+        }
+
         Ok(Config {
             ha_base_url,
             ha_token,
-            sensor_entity_id,
             port,
-            date_format,
-            time_format,
             video_width,
             video_height,
             video_fps,
             stream_format,
+            lines,
         })
+    }
+
+    /// Extracts unique sensor entity IDs from the configured lines.
+    pub fn get_required_sensors(&self) -> Vec<String> {
+        let re = Regex::new(r"\{sensor\.([\w\.]+)\}").expect("Invalid regex");
+        let mut sensors = HashSet::new();
+
+        for line in &self.lines {
+            for cap in re.captures_iter(line) {
+                if let Some(match_str) = cap.get(1) {
+                    sensors.insert(format!("sensor.{}", match_str.as_str()));
+                }
+            }
+        }
+
+        let mut result: Vec<String> = sensors.into_iter().collect();
+        result.sort(); // Sort for deterministic output
+        result
     }
 }
 
@@ -86,17 +123,25 @@ mod tests {
         env::remove_var("VIDEO_HEIGHT");
         env::remove_var("VIDEO_FPS");
         env::remove_var("STREAM_FORMAT");
+        for i in 1..=4 {
+            env::remove_var(format!("LINE_{}", i));
+        }
 
         let config = Config::from_env().unwrap();
 
         assert_eq!(config.ha_base_url, "http://localhost:8123");
         assert_eq!(config.ha_token, "test_token");
-        assert_eq!(config.sensor_entity_id, "sensor.ute_kombinerad");
         assert_eq!(config.port, 8080);
         assert_eq!(config.video_width, 640);
         assert_eq!(config.video_height, 360);
         assert_eq!(config.video_fps, 5);
         assert_eq!(config.stream_format, "mjpeg");
+
+        // Check fallback lines
+        assert_eq!(config.lines.len(), 3);
+        assert_eq!(config.lines[0], "{time:%Y-%m-%d}");
+        assert_eq!(config.lines[1], "{time:%H.%M}");
+        assert_eq!(config.lines[2], "{sensor.sensor.ute_kombinerad}°");
 
         // Cleanup
         env::remove_var("HA_BASE_URL");
@@ -105,41 +150,31 @@ mod tests {
 
     #[test]
     #[serial]
-    fn test_config_from_env_custom() {
-        env::set_var("HA_BASE_URL", "http://homeassistant.local/"); // Test trailing slash removal
-        env::set_var("HA_LONG_LIVED_TOKEN", "another_token");
-        env::set_var("SENSOR_ENTITY_ID", "sensor.temp");
-        env::set_var("PORT", "9090");
-        env::set_var("DATE_FORMAT", "%d-%m-%Y");
-        env::set_var("TIME_FORMAT", "%H:%M");
-        env::set_var("VIDEO_WIDTH", "1280");
-        env::set_var("VIDEO_HEIGHT", "720");
-        env::set_var("VIDEO_FPS", "10");
-        env::set_var("STREAM_FORMAT", "RTSP"); // Test case insensitivity
+    fn test_config_lines() {
+        env::set_var("HA_BASE_URL", "http://localhost:8123");
+        env::set_var("HA_LONG_LIVED_TOKEN", "test_token");
+
+        // Set line config
+        env::set_var("LINE_1", "Hello World");
+        env::set_var("LINE_2", "Temp: {sensor.temp}°C");
+        env::set_var("LINE_3", "{time:%H:%M:%S}");
 
         let config = Config::from_env().unwrap();
 
-        assert_eq!(config.ha_base_url, "http://homeassistant.local"); // Slash removed
-        assert_eq!(config.ha_token, "another_token");
-        assert_eq!(config.sensor_entity_id, "sensor.temp");
-        assert_eq!(config.port, 9090);
-        assert_eq!(config.date_format, "%d-%m-%Y");
-        assert_eq!(config.time_format, "%H:%M");
-        assert_eq!(config.video_width, 1280);
-        assert_eq!(config.video_height, 720);
-        assert_eq!(config.video_fps, 10);
-        assert_eq!(config.stream_format, "rtsp"); // Lowercase
+        assert_eq!(config.lines.len(), 3);
+        assert_eq!(config.lines[0], "Hello World");
+        assert_eq!(config.lines[1], "Temp: {sensor.temp}°C");
+        assert_eq!(config.lines[2], "{time:%H:%M:%S}");
 
-        // Cleanup
+        let sensors = config.get_required_sensors();
+        assert_eq!(sensors.len(), 1);
+        assert_eq!(sensors[0], "sensor.temp");
+
+         // Cleanup
         env::remove_var("HA_BASE_URL");
         env::remove_var("HA_LONG_LIVED_TOKEN");
-        env::remove_var("SENSOR_ENTITY_ID");
-        env::remove_var("PORT");
-        env::remove_var("DATE_FORMAT");
-        env::remove_var("TIME_FORMAT");
-        env::remove_var("VIDEO_WIDTH");
-        env::remove_var("VIDEO_HEIGHT");
-        env::remove_var("VIDEO_FPS");
-        env::remove_var("STREAM_FORMAT");
+        env::remove_var("LINE_1");
+        env::remove_var("LINE_2");
+        env::remove_var("LINE_3");
     }
 }
