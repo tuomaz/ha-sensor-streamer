@@ -61,6 +61,7 @@ async fn main() -> anyhow::Result<()> {
     let image_gen = Arc::new(ImageGenerator::new(
         font_data,
         config.lines.clone(),
+        config.font_size,
         config.video_width,
         config.video_height,
     )?);

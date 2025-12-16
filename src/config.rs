@@ -13,6 +13,7 @@ pub struct Config {
     pub video_fps: u64,
     pub stream_format: String,
     pub lines: Vec<String>,
+    pub font_size: f32,
 }
 
 impl Config {
@@ -38,6 +39,10 @@ impl Config {
         let stream_format = env::var("STREAM_FORMAT")
             .unwrap_or_else(|_| "mjpeg".to_string())
             .to_lowercase();
+        let font_size = env::var("FONT_SIZE")
+            .unwrap_or_else(|_| "48.0".to_string())
+            .parse()
+            .expect("FONT_SIZE must be a number");
 
         // Ensure base URL doesn't end with slash for cleaner path joining
         let ha_base_url = if ha_base_url.ends_with('/') {
@@ -80,6 +85,7 @@ impl Config {
             video_fps,
             stream_format,
             lines,
+            font_size,
         })
     }
 
@@ -123,6 +129,7 @@ mod tests {
         env::remove_var("VIDEO_HEIGHT");
         env::remove_var("VIDEO_FPS");
         env::remove_var("STREAM_FORMAT");
+        env::remove_var("FONT_SIZE");
         for i in 1..=4 {
             env::remove_var(format!("LINE_{}", i));
         }
@@ -136,6 +143,7 @@ mod tests {
         assert_eq!(config.video_height, 360);
         assert_eq!(config.video_fps, 5);
         assert_eq!(config.stream_format, "mjpeg");
+        assert_eq!(config.font_size, 48.0);
 
         // Check fallback lines
         assert_eq!(config.lines.len(), 3);
@@ -158,6 +166,7 @@ mod tests {
         env::set_var("LINE_1", "Hello World");
         env::set_var("LINE_2", "Temp: {sensor.temp}°C");
         env::set_var("LINE_3", "{time:%H:%M:%S}");
+        env::set_var("FONT_SIZE", "64");
 
         let config = Config::from_env().unwrap();
 
@@ -165,6 +174,7 @@ mod tests {
         assert_eq!(config.lines[0], "Hello World");
         assert_eq!(config.lines[1], "Temp: {sensor.temp}°C");
         assert_eq!(config.lines[2], "{time:%H:%M:%S}");
+        assert_eq!(config.font_size, 64.0);
 
         let sensors = config.get_required_sensors();
         assert_eq!(sensors.len(), 1);
@@ -176,5 +186,6 @@ mod tests {
         env::remove_var("LINE_1");
         env::remove_var("LINE_2");
         env::remove_var("LINE_3");
+        env::remove_var("FONT_SIZE");
     }
 }

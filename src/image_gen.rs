@@ -13,6 +13,7 @@ pub struct ImageGenerator {
     width: u32,
     height: u32,
     lines: Vec<String>,
+    font_size: f32,
     sensor_regex: Regex,
     time_regex: Regex,
 }
@@ -21,6 +22,7 @@ impl ImageGenerator {
     pub fn new(
         font_data: &'static [u8],
         lines: Vec<String>,
+        font_size: f32,
         width: u32,
         height: u32,
     ) -> Result<Self> {
@@ -33,6 +35,7 @@ impl ImageGenerator {
             width,
             height,
             lines,
+            font_size,
             sensor_regex,
             time_regex,
         })
@@ -89,15 +92,13 @@ impl ImageGenerator {
             *pixel = Rgb([0, 0, 0]);
         }
 
-        // Configurable scales could be added later, currently fixed.
-        // We'll use a slightly smaller font if there are many lines?
-        // Or just stick to a reasonable default.
-        // Previous code had 48.0 and 60.0. Let's try 50.0 for all for consistency,
-        // or vary it. Let's stick to 48.0 for now.
-        let scale = Scale { x: 48.0, y: 48.0 };
+        let scale = Scale {
+            x: self.font_size,
+            y: self.font_size,
+        };
         let white = Rgb([255, 255, 255]);
-        let line_height = 48;
-        let gap = 12;
+        let line_height = self.font_size as i32;
+        let gap = (self.font_size * 0.25) as i32; // 25% gap
 
         let total_lines = self.lines.len() as i32;
         let total_content_height = total_lines * line_height + (total_lines - 1).max(0) * gap;
@@ -142,7 +143,7 @@ mod tests {
             "Date: {time:%Y-%m-%d}".to_string(),
             "Temp: {sensor.temp}°C".to_string(),
         ];
-        let generator = ImageGenerator::new(font_data, lines, 640, 360)
+        let generator = ImageGenerator::new(font_data, lines, 48.0, 640, 360)
             .expect("Failed to create ImageGenerator");
 
         let mut sensors = HashMap::new();
@@ -161,7 +162,7 @@ mod tests {
     fn test_resolve_line() {
         let font_data = include_bytes!("../assets/Lato-Regular.ttf");
         let lines = vec![];
-        let generator = ImageGenerator::new(font_data, lines, 640, 360).unwrap();
+        let generator = ImageGenerator::new(font_data, lines, 48.0, 640, 360).unwrap();
 
         let mut sensors = HashMap::new();
         sensors.insert("sensor.temp".to_string(), "20".to_string());
