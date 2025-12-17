@@ -14,6 +14,7 @@ pub struct Config {
     pub stream_format: String,
     pub lines: Vec<String>,
     pub font_size: f32,
+    pub locale: String,
 }
 
 impl Config {
@@ -43,6 +44,7 @@ impl Config {
             .unwrap_or_else(|_| "48.0".to_string())
             .parse()
             .expect("FONT_SIZE must be a number");
+        let locale = env::var("LOCALE").unwrap_or_else(|_| "en_US".to_string());
 
         // Ensure base URL doesn't end with slash for cleaner path joining
         let ha_base_url = if ha_base_url.ends_with('/') {
@@ -86,6 +88,7 @@ impl Config {
             stream_format,
             lines,
             font_size,
+            locale,
         })
     }
 
@@ -130,6 +133,7 @@ mod tests {
         env::remove_var("VIDEO_FPS");
         env::remove_var("STREAM_FORMAT");
         env::remove_var("FONT_SIZE");
+        env::remove_var("LOCALE");
         for i in 1..=4 {
             env::remove_var(format!("LINE_{}", i));
         }
@@ -144,6 +148,7 @@ mod tests {
         assert_eq!(config.video_fps, 5);
         assert_eq!(config.stream_format, "mjpeg");
         assert_eq!(config.font_size, 48.0);
+        assert_eq!(config.locale, "en_US");
 
         // Check fallback lines
         assert_eq!(config.lines.len(), 3);
@@ -167,6 +172,7 @@ mod tests {
         env::set_var("LINE_2", "Temp: {sensor.temp}°C");
         env::set_var("LINE_3", "{time:%H:%M:%S}");
         env::set_var("FONT_SIZE", "64");
+        env::set_var("LOCALE", "sv_SE");
 
         let config = Config::from_env().unwrap();
 
@@ -175,6 +181,7 @@ mod tests {
         assert_eq!(config.lines[1], "Temp: {sensor.temp}°C");
         assert_eq!(config.lines[2], "{time:%H:%M:%S}");
         assert_eq!(config.font_size, 64.0);
+        assert_eq!(config.locale, "sv_SE");
 
         let sensors = config.get_required_sensors();
         assert_eq!(sensors.len(), 1);
@@ -187,5 +194,6 @@ mod tests {
         env::remove_var("LINE_2");
         env::remove_var("LINE_3");
         env::remove_var("FONT_SIZE");
+        env::remove_var("LOCALE");
     }
 }

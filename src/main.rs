@@ -62,6 +62,7 @@ async fn main() -> anyhow::Result<()> {
         font_data,
         config.lines.clone(),
         config.font_size,
+        &config.locale,
         config.video_width,
         config.video_height,
     )?);

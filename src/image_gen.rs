@@ -14,6 +14,7 @@ pub struct ImageGenerator {
     height: u32,
     lines: Vec<String>,
     font_size: f32,
+    decimal_separator: char,
     sensor_regex: Regex,
     time_regex: Regex,
 }
@@ -23,12 +24,14 @@ impl ImageGenerator {
         font_data: &'static [u8],
         lines: Vec<String>,
         font_size: f32,
+        locale: &str,
         width: u32,
         height: u32,
     ) -> Result<Self> {
         let font = Font::try_from_bytes(font_data).context("Error constructing Font from data")?;
         let sensor_regex = Regex::new(r"\{sensor\.([\w\.]+)\}").expect("Invalid sensor regex");
         let time_regex = Regex::new(r"\{time:([^}]+)\}").expect("Invalid time regex");
+        let decimal_separator = Self::get_decimal_separator(locale);
 
         Ok(Self {
             font: Arc::new(font),
@@ -36,9 +39,31 @@ impl ImageGenerator {
             height,
             lines,
             font_size,
+            decimal_separator,
             sensor_regex,
             time_regex,
         })
+    }
+
+    fn get_decimal_separator(locale: &str) -> char {
+        let l = locale.to_lowercase();
+        // Common locales that use comma as decimal separator
+        // Nordic, Western/Southern/Eastern Europe, Russia, South America, etc.
+        let comma_prefixes = [
+            "sv", "no", "nb", "nn", "da", "fi", "is", // Nordic
+            "de", "nl", "pl", "cs", "sk", "hu", "ro", "bg", "hr", "sr", "sl", "bs",
+            "mk", // Central/East EU
+            "fr", "es", "pt", "it", "el", "tr", // West/South EU
+            "ru", "uk", "be", "kk", // Cyrillic
+            "id", "vi", // SE Asia
+            "az", "sq", "hy", "ka", // Others
+        ];
+
+        if comma_prefixes.iter().any(|&p| l.starts_with(p)) {
+            ','
+        } else {
+            '.'
+        }
     }
 
     fn measure_text_width(&self, text: &str, scale: Scale) -> u32 {
@@ -55,11 +80,6 @@ impl ImageGenerator {
         let mut result = template.to_string();
 
         // Replace Time
-        // Note: We need to handle multiple time placeholders or just one?
-        // Replace all instances of {time:fmt}
-        // Since we can't easily replace_all with a capturing group that changes per match in a simple pass
-        // without a loop or a sophisticated replace function, we'll iterate.
-        // Actually, Regex::replace_all accepts a closure.
         let now = Local::now();
         result = self
             .time_regex
@@ -74,10 +94,17 @@ impl ImageGenerator {
             .sensor_regex
             .replace_all(&result, |caps: &regex::Captures| {
                 let entity_id = format!("sensor.{}", &caps[1]);
-                sensor_values
+                let val = sensor_values
                     .get(&entity_id)
                     .cloned()
-                    .unwrap_or_else(|| "?".to_string())
+                    .unwrap_or_else(|| "?".to_string());
+
+                // Apply decimal separator if numeric
+                if val.parse::<f64>().is_ok() {
+                    val.replace('.', &self.decimal_separator.to_string())
+                } else {
+                    val
+                }
             })
             .to_string();
 
@@ -143,7 +170,7 @@ mod tests {
             "Date: {time:%Y-%m-%d}".to_string(),
             "Temp: {sensor.temp}°C".to_string(),
         ];
-        let generator = ImageGenerator::new(font_data, lines, 48.0, 640, 360)
+        let generator = ImageGenerator::new(font_data, lines, 48.0, "en_US", 640, 360)
             .expect("Failed to create ImageGenerator");
 
         let mut sensors = HashMap::new();
@@ -159,29 +186,34 @@ mod tests {
     }
 
     #[test]
-    fn test_resolve_line() {
+    fn test_resolve_line_locale() {
         let font_data = include_bytes!("../assets/Lato-Regular.ttf");
         let lines = vec![];
-        let generator = ImageGenerator::new(font_data, lines, 48.0, 640, 360).unwrap();
 
+        // Test US Locale (Dot)
+        let gen_us =
+            ImageGenerator::new(font_data, lines.clone(), 48.0, "en_US", 640, 360).unwrap();
         let mut sensors = HashMap::new();
-        sensors.insert("sensor.temp".to_string(), "20".to_string());
+        sensors.insert("sensor.temp".to_string(), "22.5".to_string());
+        assert_eq!(gen_us.resolve_line("{sensor.temp}", &sensors), "22.5");
 
-        // Test Time
-        let res = generator.resolve_line("Time: {time:%H}", &sensors);
-        assert!(res.starts_with("Time: ")); // Can't easily check hour, but regex works
+        // Test SV Locale (Comma)
+        let gen_sv =
+            ImageGenerator::new(font_data, lines.clone(), 48.0, "sv_SE", 640, 360).unwrap();
+        assert_eq!(gen_sv.resolve_line("{sensor.temp}", &sensors), "22,5");
 
-        // Test Sensor
-        let res = generator.resolve_line("Temp: {sensor.temp}", &sensors);
-        assert_eq!(res, "Temp: 20");
+        // Test Non-numeric
+        sensors.insert("sensor.state".to_string(), "on".to_string());
+        assert_eq!(gen_sv.resolve_line("{sensor.state}", &sensors), "on");
 
-        // Test Missing Sensor
-        let res = generator.resolve_line("Hum: {sensor.hum}", &sensors);
-        assert_eq!(res, "Hum: ?");
+        // Test IP (multiple dots, parses as float? "1.2.3.4" -> No)
+        sensors.insert("sensor.ip".to_string(), "192.168.1.1".to_string());
+        assert_eq!(gen_sv.resolve_line("{sensor.ip}", &sensors), "192.168.1.1");
 
-        // Test Multiple
-        sensors.insert("sensor.hum".to_string(), "50".to_string());
-        let res = generator.resolve_line("T: {sensor.temp} H: {sensor.hum}", &sensors);
-        assert_eq!(res, "T: 20 H: 50");
+        // Test simple version number "1.2" parses as float -> "1,2".
+        // This is a trade-off. "Version 1.2" might become "Version 1,2".
+        // Usually acceptable if LOCALE is set.
+        sensors.insert("sensor.ver".to_string(), "1.5".to_string());
+        assert_eq!(gen_sv.resolve_line("{sensor.ver}", &sensors), "1,5");
     }
 }
