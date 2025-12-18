@@ -8,14 +8,31 @@ services:
     restart: unless-stopped
     ports:
       - "8080:8080"
-      - "8554:8554" # Optional: For RTSP if you expose it directly, though usually it's internal to the container network if using go2rtc
+      - "8554:8554" # Optional: For RTSP
     environment:
       - HA_BASE_URL=http://192.168.1.50:8123
       - HA_LONG_LIVED_TOKEN=your_token_here
-      - SENSOR_ENTITY_ID=sensor.ute_kombinerad
       - PORT=8080
       - TZ=Europe/Stockholm
+      
+      # Video Configuration
       - VIDEO_WIDTH=640
       - VIDEO_HEIGHT=360
       - VIDEO_FPS=5
       - STREAM_FORMAT=rtsp # Options: mjpeg, rtsp
+      
+      # Display Configuration
+      - LOCALE=sv_SE        # Determines decimal separator (. or ,)
+      - FONT_SIZE=48.0      # Font size for text
+      
+      # Content Lines (Templates)
+      # Supported placeholders: {sensor.entity_id}, {time:format}
+      - LINE_1={time:%Y-%m-%d}
+      - LINE_2={time:%H.%M}
+      - LINE_3={sensor.ute_kombinerad}°C
+      # - LINE_4=Extra info
+
+      # Legacy Configuration (Fallback if LINE_* are not set)
+      # - SENSOR_ENTITY_ID=sensor.ute_kombinerad
+      # - DATE_FORMAT=%Y-%m-%d
+      # - TIME_FORMAT=%H.%M
