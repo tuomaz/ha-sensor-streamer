@@ -75,7 +75,11 @@ impl Config {
 
             lines.push(format!("{{time:{}}}", date_format));
             lines.push(format!("{{time:{}}}", time_format));
-            lines.push(format!("{{sensor.{}}}°", sensor_entity_id));
+            // Old SENSOR_ENTITY_ID already contained "sensor." prefix, so we extract the actual ID part.
+            let entity_id_part = sensor_entity_id
+                .strip_prefix("sensor.")
+                .unwrap_or(&sensor_entity_id);
+            lines.push(format!("{{sensor.{}}}°", entity_id_part));
         }
 
         Ok(Config {
@@ -154,7 +158,7 @@ mod tests {
         assert_eq!(config.lines.len(), 3);
         assert_eq!(config.lines[0], "{time:%Y-%m-%d}");
         assert_eq!(config.lines[1], "{time:%H.%M}");
-        assert_eq!(config.lines[2], "{sensor.sensor.ute_kombinerad}°");
+        assert_eq!(config.lines[2], "{sensor.ute_kombinerad}°"); // This now correctly matches the entity ID part
 
         // Cleanup
         env::remove_var("HA_BASE_URL");
