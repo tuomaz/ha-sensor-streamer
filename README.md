@@ -4,6 +4,8 @@
 
 `ha-sensor-streamer` is a lightweight, high-performance Rust application that fetches sensor data from Home Assistant and overlays it onto a generated video stream (MJPEG or RTSP).
 
+![Screenshot](assets/screenshot.png)
+
 This is ideal for integrating non-video data (temperature, power usage, weather, time) into NVR systems like **Frigate**, **Blue Iris**, or **Synology Surveillance Station** that expect video feeds.
 
 ## Features
