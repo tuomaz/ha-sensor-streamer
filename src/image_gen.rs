@@ -29,6 +29,7 @@ impl ImageGenerator {
         height: u32,
     ) -> Result<Self> {
         let font = Font::try_from_bytes(font_data).context("Error constructing Font from data")?;
+        // Changed regex to capture just the entity ID part after "sensor."
         let sensor_regex = Regex::new(r"\{sensor\.([\w\.]+)\}").expect("Invalid sensor regex");
         let time_regex = Regex::new(r"\{time:([^}]+)\}").expect("Invalid time regex");
         let decimal_separator = Self::get_decimal_separator(locale);
@@ -93,6 +94,7 @@ impl ImageGenerator {
         result = self
             .sensor_regex
             .replace_all(&result, |caps: &regex::Captures| {
+                // Prepend "sensor." to the captured ID to form the full entity_id for lookup
                 let entity_id = format!("sensor.{}", &caps[1]);
                 let val = sensor_values
                     .get(&entity_id)
@@ -168,12 +170,14 @@ mod tests {
         let font_data = include_bytes!("../assets/Lato-Regular.ttf");
         let lines = vec![
             "Date: {time:%Y-%m-%d}".to_string(),
+            // Updated template to just entity ID
             "Temp: {sensor.temp}°C".to_string(),
         ];
         let generator = ImageGenerator::new(font_data, lines, 48.0, "en_US", 640, 360)
             .expect("Failed to create ImageGenerator");
 
         let mut sensors = HashMap::new();
+        // Lookup still uses full entity ID
         sensors.insert("sensor.temp".to_string(), "22.5".to_string());
 
         let frame = generator
@@ -195,11 +199,13 @@ mod tests {
             ImageGenerator::new(font_data, lines.clone(), 48.0, "en_US", 640, 360).unwrap();
         let mut sensors = HashMap::new();
         sensors.insert("sensor.temp".to_string(), "22.5".to_string());
+        // Updated template to just entity ID
         assert_eq!(gen_us.resolve_line("{sensor.temp}", &sensors), "22.5");
 
         // Test SV Locale (Comma)
         let gen_sv =
             ImageGenerator::new(font_data, lines.clone(), 48.0, "sv_SE", 640, 360).unwrap();
+        // Updated template to just entity ID
         assert_eq!(gen_sv.resolve_line("{sensor.temp}", &sensors), "22,5");
 
         // Test Non-numeric
